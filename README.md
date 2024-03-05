@@ -91,7 +91,13 @@
 - Each submission is then further filtered to ensure it matches all provided filter criteria.
 - A submission is included in the final response only if it meets all filter conditions for the specified question IDs.
 
+## Deployment
 
+The API is dockerized and deployed on Render. It can be accessed at the following URL:
+
+```http
+https://fillout-filter-7hzg.onrender.com/
+```
 
 ## Built With
 
