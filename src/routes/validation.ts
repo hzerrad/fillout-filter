@@ -99,7 +99,13 @@ export const getFilteredSchema: Schema = {
 
 				// check if each filter is in the correct format
 				for (const filter of filters) {
-					const [id, condition, value] = filter.split(',');
+					const split = filter.split(',');
+
+					if (split.length !== 3) {
+						return Promise.reject('Invalid filter');
+					}
+
+					const [id, condition, value] = split;
 					if (!id || !condition || !value) {
 						return Promise.reject('Invalid filter');
 					}
