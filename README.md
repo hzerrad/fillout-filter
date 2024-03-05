@@ -50,7 +50,7 @@
 
   ### Filtered Responses Endpoint
 
-  **GET** `/v1/api/forms/:formId/filteredResponses`
+  **GET** `/:formId/filteredResponses`
 
   Fetches form responses with the option to apply custom filters.
 
@@ -76,7 +76,7 @@
   #### Example
 
   ```http
-  GET /api/v1/forms/cLZojxk94ous/filteredResponses/v1/api/forms/cLZojxk94ous/filteredResponses?filter=dSRAe3hygqVwTpPK69p5td,less_than,2024-04-01&filter=bE2Bo4cGUv49cjnqZ4UnkW,equals,Johnny
+  GET /cLZojxk94ous/filteredResponses/v1/api/forms/cLZojxk94ous/filteredResponses?filter=dSRAe3hygqVwTpPK69p5td,less_than,2024-04-01&filter=bE2Bo4cGUv49cjnqZ4UnkW,equals,Johnny
   ```
 
   This request fetches responses for form ID `cLZojxk94ous` where the answer to the question with ID `id1` equals `Timmy` and the answer to the question with ID `id2` is less than `2024-01-01`.

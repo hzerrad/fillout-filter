@@ -12,7 +12,7 @@ import { SubmissionResponse } from '../types/SubmissionResponse';
 
 const router = Router();
 
-router.get('/v1/api/forms/:formId/filteredResponses', validate(checkSchema(getFilteredSchema)), async (req, res) => {
+router.get('/:formId/filteredResponses', validate(checkSchema(getFilteredSchema)), async (req, res) => {
 	try {
 		const { formId } = req.params;
 		const { status, beforeDate, afterDate, filter, sort, limit, offset, includeEditLink } = req.query;
