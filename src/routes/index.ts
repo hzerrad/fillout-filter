@@ -70,9 +70,9 @@ router.get('/v1/api/forms/:formId/filteredResponses', validate(checkSchema(getFi
 						case 'does_not_equal':
 							return question.value !== filter.value;
 						case 'greater_than':
-							return new Date(question.value) > new Date(filter.value);
+							return question.value > filter.value;
 						case 'less_than':
-							return new Date(question.value) < new Date(filter.value);
+							return question.value < filter.value;
 						default:
 							return true;
 					}
