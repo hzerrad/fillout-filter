@@ -1,13 +1,14 @@
 import { Router } from 'express';
+import { isAxiosError } from 'axios';
+import { checkSchema } from 'express-validator';
+
 import filloutApi from '../utils/fillout-api';
+import logger from '../utils/logger';
+import { getFilteredSchema } from './validation';
 import { FilterClauseType } from '../types/FilterClauseType';
 import { FilterCondition } from '../types/FilterCondition';
 import { validate } from '../middleware/validator';
-import { checkSchema } from 'express-validator';
-import { getFilteredSchema } from './validation';
 import { SubmissionResponse } from '../types/SubmissionResponse';
-import logger from '../utils/logger';
-import { isAxiosError } from 'axios';
 
 const router = Router();
 
