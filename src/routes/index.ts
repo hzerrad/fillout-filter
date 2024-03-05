@@ -21,8 +21,7 @@ router.get('/:formId/filteredResponses', validate(checkSchema(getFilteredSchema)
 			beforeDate,
 			afterDate,
 			sort,
-			limit,
-			offset,
+			// limit is not set to get the maximum number of responses and consequently calculate totalResponse and pageCount correctly
 			includeEditLink,
 		},
 	});
@@ -69,11 +68,19 @@ router.get('/:formId/filteredResponses', validate(checkSchema(getFilteredSchema)
 		filteredResponses = data.responses; // No filter, include all responses
 	}
 
-	res.json({
-		totalResponses: data.totalResponses,
-		pageCount: data.pageCount,
-		responses: filteredResponses,
-	});
+	const pageLimit = parseInt((limit as string) ?? '150');
+	const pageOffset = parseInt((offset as string) ?? '0');
+
+	const totalResponses = filteredResponses.length;
+	const pageCount = Math.ceil(totalResponses / pageLimit);
+
+	const limitedResponses = filteredResponses.slice(pageOffset, pageOffset + pageLimit);
+
+	res.status(200).send({
+		responses: limitedResponses,
+		totalResponses,
+		pageCount,
+	} satisfies SubmissionResponse);
 });
 
 /**
