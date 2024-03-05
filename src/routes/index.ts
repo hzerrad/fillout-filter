@@ -6,81 +6,105 @@ import { validate } from '../middleware/validator';
 import { checkSchema } from 'express-validator';
 import { getFilteredSchema } from './validation';
 import { SubmissionResponse } from '../types/SubmissionResponse';
+import logger from '../utils/logger';
+import { isAxiosError } from 'axios';
 
 const router = Router();
 
 router.get('/:formId/filteredResponses', validate(checkSchema(getFilteredSchema)), async (req, res) => {
-	const { formId } = req.params;
-	const { status, beforeDate, afterDate, filter, sort, limit, offset, includeEditLink } = req.query;
+	try {
+		const { formId } = req.params;
+		const { status, beforeDate, afterDate, filter, sort, limit, offset, includeEditLink } = req.query;
 
-	const filterClause = parseFilters(filter as string | string[]);
+		// Parsing the filter clause from the query
+		const filterClause = parseFilters(filter as string | string[]);
 
-	const response = await filloutApi.get(`/v1/api/forms/${formId}/submissions`, {
-		params: {
-			status,
-			beforeDate,
-			afterDate,
-			sort,
-			// limit is not set to get the maximum number of responses and consequently calculate totalResponse and pageCount correctly
-			includeEditLink,
-		},
-	});
-
-	const data: SubmissionResponse = response.data;
-
-	let filteredResponses;
-
-	if (filterClause) {
-		const filterIds = filterClause.map((f) => f.id);
-
-		filteredResponses = data.responses.filter((response) => {
-			// Check if the submission contains all the question IDs in the filter
-			const containsAllIds = filterIds.every((filterId) =>
-				response.questions.some((question) => question.id === filterId)
-			);
-
-			if (!containsAllIds) {
-				return false; // Exclude submission if it doesn't contain all IDs
-			}
-
-			// Apply filter conditions
-			return response.questions.every((question) => {
-				const filter = filterClause.find((f) => f.id === question.id);
-				if (!filter) {
-					return true; // Include questions that are not part of the filter
-				}
-
-				switch (filter.condition) {
-					case 'equals':
-						return question.value?.toString().toLowerCase() === filter.value.toString().toLowerCase();
-					case 'does_not_equal':
-						return question.value !== filter.value;
-					case 'greater_than':
-						return new Date(question.value) > new Date(filter.value);
-					case 'less_than':
-						return new Date(question.value) < new Date(filter.value);
-					default:
-						return true;
-				}
-			});
+		// Fetching responses from the Fillout API without a limit to get the maximum number of responses
+		const response = await filloutApi.get(`/v1/api/forms/${formId}/submissions`, {
+			params: {
+				status,
+				beforeDate,
+				afterDate,
+				sort,
+				// Omitting the limit/offset to fetch all available responses (helpful to correctly calculate pagination (total responses, page count))
+				includeEditLink,
+			},
 		});
-	} else {
-		filteredResponses = data.responses; // No filter, include all responses
+
+		const data: SubmissionResponse = response.data;
+
+		let filteredResponses;
+
+		if (!filterClause) {
+			// Include all responses if no filter is applied
+			filteredResponses = data.responses;
+		} else {
+			// Preparing a list of IDs from the filter clause for validation
+			const filterIds = filterClause.map((f) => f.id);
+
+			// Filtering the responses based on the filter criteria
+			filteredResponses = data.responses.filter((response) => {
+				// Ensuring each response contains all the question IDs specified in the filters
+				const containsAllIds = filterIds.every((filterId) =>
+					response.questions.some((question) => question.id === filterId)
+				);
+
+				if (!containsAllIds) {
+					// Excluding the response if it doesn't contain all the required IDs
+					return false;
+				}
+
+				// Applying the filter conditions to each question
+				return response.questions.every((question) => {
+					const filter = filterClause.find((f) => f.id === question.id);
+					if (!filter) {
+						// If the question is not part of the filter, include it by default
+						return true;
+					}
+
+					// Matching the question's value with the filter's condition and value
+					switch (filter.condition) {
+						case 'equals':
+							return question.value?.toString().toLowerCase() === filter.value.toString().toLowerCase();
+						case 'does_not_equal':
+							return question.value !== filter.value;
+						case 'greater_than':
+							return new Date(question.value) > new Date(filter.value);
+						case 'less_than':
+							return new Date(question.value) < new Date(filter.value);
+						default:
+							return true;
+					}
+				});
+			});
+		}
+
+		// Calculating pagination parameters
+		const pageLimit = parseInt((limit as string) ?? '150');
+		const pageOffset = parseInt((offset as string) ?? '0');
+
+		// Determining the total number of filtered responses and the number of pages
+		const totalResponses = filteredResponses.length;
+		const pageCount = Math.ceil(totalResponses / pageLimit);
+
+		// Slicing the filtered responses based on the pagination parameters
+		const limitedResponses = filteredResponses.slice(pageOffset, pageOffset + pageLimit);
+
+		// Sending the paginated and filtered responses along with total response count and page count
+		res.status(200).send({
+			responses: limitedResponses,
+			totalResponses,
+			pageCount,
+		} satisfies SubmissionResponse);
+	} catch (e) {
+		logger.error('Error fetching filtered responses', {
+			error: (e as Error).message,
+			stack: (e as Error).stack,
+			response: isAxiosError(e) ? e.response?.data : undefined,
+		});
+
+		res.status(500).send({ error: 'Error fetching filtered responses' });
 	}
-
-	const pageLimit = parseInt((limit as string) ?? '150');
-	const pageOffset = parseInt((offset as string) ?? '0');
-
-	const totalResponses = filteredResponses.length;
-	const pageCount = Math.ceil(totalResponses / pageLimit);
-
-	const limitedResponses = filteredResponses.slice(pageOffset, pageOffset + pageLimit);
-
-	res.status(200).send({
-		responses: limitedResponses,
-		totalResponses,
-		pageCount,
-	} satisfies SubmissionResponse);
 });
 
 /**
