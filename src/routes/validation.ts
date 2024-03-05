@@ -100,7 +100,6 @@ export const getFilteredSchema: Schema = {
 				// check if each filter is in the correct format
 				for (const filter of filters) {
 					const [id, condition, value] = filter.split(',');
-					console.log('id condition value', id, condition, value);
 					if (!id || !condition || !value) {
 						return Promise.reject('Invalid filter');
 					}

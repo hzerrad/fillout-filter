@@ -5,6 +5,7 @@ import { FilterCondition } from '../types/FilterCondition';
 import { validate } from '../middleware/validator';
 import { checkSchema } from 'express-validator';
 import { getFilteredSchema } from './validation';
+import { SubmissionResponse } from '../types/SubmissionResponse';
 
 const router = Router();
 
@@ -26,10 +27,53 @@ router.get('/:formId/filteredResponses', validate(checkSchema(getFilteredSchema)
 		},
 	});
 
-	console.log('filterClause', filterClause);
-	console.log('response', response.data);
+	const data: SubmissionResponse = response.data;
 
-	res.status(200).send(response.data);
+	let filteredResponses;
+
+	if (filterClause) {
+		const filterIds = filterClause.map((f) => f.id);
+
+		filteredResponses = data.responses.filter((response) => {
+			// Check if the submission contains all the question IDs in the filter
+			const containsAllIds = filterIds.every((filterId) =>
+				response.questions.some((question) => question.id === filterId)
+			);
+
+			if (!containsAllIds) {
+				return false; // Exclude submission if it doesn't contain all IDs
+			}
+
+			// Apply filter conditions
+			return response.questions.every((question) => {
+				const filter = filterClause.find((f) => f.id === question.id);
+				if (!filter) {
+					return true; // Include questions that are not part of the filter
+				}
+
+				switch (filter.condition) {
+					case 'equals':
+						return question.value?.toString().toLowerCase() === filter.value.toString().toLowerCase();
+					case 'does_not_equal':
+						return question.value !== filter.value;
+					case 'greater_than':
+						return new Date(question.value) > new Date(filter.value);
+					case 'less_than':
+						return new Date(question.value) < new Date(filter.value);
+					default:
+						return true;
+				}
+			});
+		});
+	} else {
+		filteredResponses = data.responses; // No filter, include all responses
+	}
+
+	res.json({
+		totalResponses: data.totalResponses,
+		pageCount: data.pageCount,
+		responses: filteredResponses,
+	});
 });
 
 /**
